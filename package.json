@@ -7,7 +7,7 @@
     "@material-ui/lab": "^3.0.0-alpha.30",
     "@material-ui/styles": "^3.0.0-alpha.10",
     "downloadjs": "^1.4.7",
-    "node-sass": "^4.14.1",
+    "node-sass": "^7.0.0",
     "ramda": "^0.26.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
