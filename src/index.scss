@@ -1,15 +1,65 @@
+:root {
+  /* Desk / backdrop */
+  --desk-base:      #2b2420;
+  --desk-shadow:    rgba(0,0,0,0.65);
+
+  /* Unit body / bezel (anodised black) */
+  --bezel-0:        #0c0d0f;
+  --bezel-1:        #16181b;
+  --bezel-edge-hi:  rgba(255,255,255,0.07);
+  --bezel-edge-lo:  #050506;
+
+  /* Faceplate (brushed aluminium) */
+  --plate-0:        #4a4f58;
+  --plate-1:        #3a3f48;
+  --plate-2:        #2e3238;
+  --plate-3:        #454a53;
+  --brush-line:     rgba(255,255,255,0.022);
+
+  /* Step cells */
+  --cell-well:      #191b1f;
+  --cell-beat:      #20242b;
+  --cell-border:    #2a2e35;
+
+  /* Accents */
+  --led-cyan:       #38bdf8;
+  --led-cyan-soft:  #7dd3fc;
+  --accent-amber:   #ff7a18;
+  --accent-amber-d: #c95a0a;
+
+  /* OLED display */
+  --oled-bg:        #06131c;
+  --oled-text:      #5fd0ff;
+  --oled-border:    #12303f;
+
+  /* Typography */
+  --font-display:   'Oswald', 'Lato', system-ui, sans-serif;
+  --font-label:     'Inter', system-ui, sans-serif;
+
+  /* Geometry */
+  --unit-max-w:     1080px;
+  --unit-radius:    14px;
+  --plate-radius:   8px;
+  --cell-radius:    3px;
+}
+
+html,
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-label), -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  background-color: var(--desk-base);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
-
-

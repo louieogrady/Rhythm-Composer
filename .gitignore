@@ -24,3 +24,6 @@ yarn-error.log*
 
 # specs
 .specs
+
+# Claude Code agent worktrees
+.claude/worktrees

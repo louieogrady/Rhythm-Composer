@@ -1,26 +1,66 @@
 // ── Base ──────────────────────────────────────────────────────────────────────
 
-html,
-body,
-.App {
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(150deg, #1e2126 0%, #111316 55%, #191c21 100%);
+// (html, body overflow:hidden set in index.scss)
+
+// ── Parallax background layer ─────────────────────────────────────────────────
+
+// Oversized so scaling down for parallax never exposes the body colour.
+// JS (useZoom onTransform) drives transform at 40% of the unit's zoom/pan.
+.bg-layer {
+  position: fixed;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  z-index: 0;
+  background-image: url('./images/wood-tile-2k.jpg');
+  background-repeat: repeat;
+  background-size: 800px;
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
+  will-change: transform;
+}
+
+// ── Vignette overlay (always full-screen, never transforms) ───────────────────
+
+.vignette-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.55) 100%);
 }
 
 // ── Page scaffold ─────────────────────────────────────────────────────────────
 
+.App {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  cursor: grab;
+}
+
 .app-unit {
+  width: 100%;
+  max-width: var(--unit-max-w);
+  border-radius: var(--unit-radius);
+  background: linear-gradient(170deg, var(--bezel-1), var(--bezel-0));
+  border: 1px solid var(--bezel-edge-lo);
+  border-top-color: var(--bezel-edge-hi);
+  box-shadow:
+    0 2px 0 var(--bezel-edge-hi) inset,
+    0 28px 60px -12px var(--desk-shadow),
+    0 8px 18px -6px rgba(0,0,0,0.5);
+  padding: 14px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  padding: 0 0.75rem;
-  box-sizing: border-box;
-
-  @media (min-width: 768px) {
-    padding: 0 2rem;
-  }
+  gap: 8px;
 }
 
 // ── Title row ─────────────────────────────────────────────────────────────────
@@ -31,14 +71,20 @@ body,
   align-items: center;
   gap: 0.4rem;
   flex-wrap: wrap;
-  padding: 0.35rem 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--oled-bg);
+  border: 1px solid var(--oled-border);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.7);
 
   h1 {
     flex: 1 1 auto;
     font-size: clamp(1.4rem, 5vw, 2.5rem);
     margin: 0;
-    font-family: Lato;
-    color: #f7f5e1;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    color: var(--oled-text);
+    text-shadow: 0 0 8px rgba(95,208,255,0.45);
     white-space: nowrap;
     min-width: 0;
   }
@@ -47,17 +93,29 @@ body,
 .info-button,
 .copy-url-button {
   flex-shrink: 0;
+  font-family: var(--font-label);
   font-size: clamp(0.7rem, 1.5vw, 1rem);
   padding: 0.2rem 0.5rem;
   line-height: 1.4;
-  background: linear-gradient(to bottom, #3e4349, #2c3036);
-  color: #c8d2dc;
-  border: 1px solid #1a1e24;
-  border-bottom-color: #52585f;
+  background: linear-gradient(to bottom, #2a2d32, #1c1f23);
+  color: #a0aab4;
+  border: 1px solid #0e1013;
+  border-bottom-color: #38404a;
   outline: none;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  transition: box-shadow 80ms ease, background 80ms ease;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent-amber), inset 0 1px 0 rgba(255,255,255,0.07);
+  }
+
+  &:active {
+    background: linear-gradient(to bottom, #1a1d21, #141619);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.5);
+  }
 }
 
 .blue {
@@ -71,26 +129,25 @@ body,
 
 .main-row {
   display: flex;
-  flex: 1;
-  min-height: 0;
+  min-height: clamp(420px, 70vh, 620px);
   // Brushed metal: fine horizontal brush marks over a dark-grey gradient
   background:
     repeating-linear-gradient(
       to bottom,
       transparent 0px,
       transparent 1px,
-      rgba(255, 255, 255, 0.022) 1px,
-      rgba(255, 255, 255, 0.022) 2px
+      var(--brush-line) 1px,
+      var(--brush-line) 2px
     ),
     linear-gradient(
       170deg,
-      #464b54 0%,
-      #3a3f48 30%,
-      #2e3238 55%,
-      #393e47 80%,
-      #454a53 100%
+      var(--plate-0) 0%,
+      var(--plate-1) 30%,
+      var(--plate-2) 55%,
+      var(--plate-1) 80%,
+      var(--plate-3) 100%
     );
-  border-radius: 8px;
+  border-radius: var(--plate-radius);
   padding: 6px 4px;
   border: 1px solid #1e2228;
   border-bottom-color: #585e68;
@@ -126,11 +183,11 @@ body,
 }
 
 .box {
-  background: #22262c;
-  border: 1px solid #2a2e35;
-  border-bottom-color: #3a3f48;
+  background: var(--cell-well);
+  border: 1px solid var(--cell-border);
+  border-bottom-color: var(--plate-1);
   margin: 2px;
-  border-radius: 3px;
+  border-radius: var(--cell-radius);
   flex: 1 0 auto;
   position: relative;
 
@@ -142,12 +199,12 @@ body,
   }
 
   &--active {
-    border-color: #7dd3fc;
-    border-bottom-color: #7dd3fc;
+    border-color: var(--led-cyan-soft);
+    border-bottom-color: var(--led-cyan-soft);
   }
 
   .inner {
-    background: #192032;
+    background: var(--cell-well);
     position: absolute;
     inset: 0;
     border-radius: 2px;
@@ -159,11 +216,11 @@ body,
   }
 
   .inner--beat {
-    background: #1e2840;
+    background: var(--cell-beat);
   }
 
   .inner--on {
-    background: #38bdf8;
+    background: var(--led-cyan);
     box-shadow:
       0 0 14px 4px rgba(56, 189, 248, 0.45),
       0 0 5px 2px rgba(125, 211, 252, 0.6),
@@ -226,11 +283,12 @@ body,
 
     .knob-label {
       display: block;
+      font-family: var(--font-label);
       font-size: 0.75em;
       text-align: center;
-      background-color: #0f2233;
-      color: #4fc3f7;
-      border: 1px solid #1a3a52;
+      background-color: var(--oled-bg);
+      color: var(--oled-text);
+      border: 1px solid var(--oled-border);
       box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 3px, rgba(0, 0, 0, 0.24) 0px 1px 2px;
       padding: 0 2px;
       white-space: nowrap;
@@ -259,7 +317,7 @@ body,
   outline: none;
 
   &:focus-visible {
-    filter: drop-shadow(0 0 3px #4fc3f7);
+    filter: drop-shadow(0 0 3px var(--oled-text));
   }
 }
 
@@ -268,11 +326,12 @@ body,
 
   @media (min-width: 1024px) {
     display: block;
+    font-family: var(--font-label);
     font-size: 0.8em;
     text-align: center;
-    background-color: #0f2233;
-    color: #4fc3f7;
-    border: 1px solid #1a3a52;
+    background-color: var(--oled-bg);
+    color: var(--oled-text);
+    border: 1px solid var(--oled-border);
     box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 3px, rgba(0, 0, 0, 0.24) 0px 1px 2px;
     padding: 0 2px;
   }
@@ -318,13 +377,14 @@ body,
 
   .knob-label {
     display: block;
+    font-family: var(--font-label);
     font-size: clamp(0.5rem, 1vw, 0.7rem);
     padding: 0 2px;
     margin-top: 2px;
     text-align: center;
-    background-color: #0f2233;
-    color: #4fc3f7;
-    border: 1px solid #1a3a52;
+    background-color: var(--oled-bg);
+    color: var(--oled-text);
+    border: 1px solid var(--oled-border);
     box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 3px, rgba(0, 0, 0, 0.24) 0px 1px 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -337,15 +397,27 @@ body,
 .trans-button {
   min-height: 2.25rem;
   padding: 0 0.6rem;
-  background: linear-gradient(to bottom, #3e4349, #2c3036);
-  color: #c8d2dc;
+  font-family: var(--font-label);
+  background: linear-gradient(to bottom, #2a2d32, #1c1f23);
+  color: #a0aab4;
   border-radius: 4px;
-  border: 1px solid #1a1e24;
-  border-bottom-color: #52585f;
+  border: 1px solid #0e1013;
+  border-bottom-color: #38404a;
   cursor: pointer;
   outline: none;
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transition: box-shadow 80ms ease, background 80ms ease;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent-amber), inset 0 1px 0 rgba(255,255,255,0.07);
+  }
+
+  &:active {
+    background: linear-gradient(to bottom, #1a1d21, #141619);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.5);
+    color: var(--accent-amber);
+  }
 }
 
 .button-inner {
@@ -399,7 +471,7 @@ body,
 
   p {
     font-size: 1rem;
-    font-family: Lato;
+    font-family: var(--font-label);
     text-align: left;
     line-height: 1.7;
     color: #222;

@@ -21,7 +21,7 @@ import RandomPattern from './RandomPattern';
 import Title from './Title';
 import InfoPopUp from './InfoPopup';
 import FreqPopUp from './FreqPopup';
-import { Knob } from '../lib';
+import { Knob, useZoom } from '../lib';
 
 import * as csoundEngine from '../audio/csound-engine';
 
@@ -259,13 +259,26 @@ const App = () => {
     { label: 'Tuning',  min: 44,  max: 200, value: congaTuning,           onChange: v => changeCongaTuning(v, false),  onCommit: v => changeCongaTuning(v, true) },
   ];
 
+  const stageRef = useRef<HTMLDivElement>(null);
+  const bgRef    = useRef<HTMLDivElement>(null);
+  useZoom(stageRef, {
+    onTransform: (s, tx, ty) => {
+      const el = bgRef.current;
+      if (!el) return;
+      // 0.9 keeps background nearly in sync with the unit — same-plane "moving closer" feel
+      el.style.transform = `translate(${tx * 0.9}px, ${ty * 0.9}px) scale(${1 + (s - 1) * 0.9})`;
+    },
+  });
+
   const overlayClass = showInfo || showFreq ? 'overlay' : undefined;
 
   return (
     <>
+      <div className="bg-layer" ref={bgRef} />
+      <div className="vignette-layer" />
       <div className={overlayClass}>
         <div className="App">
-          <div className="app-unit">
+          <div className="app-unit" ref={stageRef}>
 
             <div className="title-row">
               <Title
