@@ -1,36 +1,36 @@
 :root {
   /* Desk / backdrop */
   --desk-base:      #2b2420;
-  --desk-shadow:    rgba(0,0,0,0.65);
+  --desk-shadow:    rgba(0,0,0,0.7);
 
-  /* Unit body / bezel (anodised black) */
-  --bezel-0:        #0c0d0f;
-  --bezel-1:        #16181b;
-  --bezel-edge-hi:  rgba(255,255,255,0.07);
-  --bezel-edge-lo:  #050506;
+  /* Unit body (warm light grey — Model:Samples style) */
+  --bezel-0:        #c4c3c0;
+  --bezel-1:        #d0cfcc;
+  --bezel-edge-hi:  rgba(255,255,255,0.65);
+  --bezel-edge-lo:  #96958f;
 
-  /* Faceplate (brushed aluminium) */
-  --plate-0:        #4a4f58;
-  --plate-1:        #3a3f48;
-  --plate-2:        #2e3238;
-  --plate-3:        #454a53;
-  --brush-line:     rgba(255,255,255,0.022);
+  /* Faceplate (same grey family — unified, no contrast seam) */
+  --plate-0:        #bebdba;
+  --plate-1:        #c8c7c4;
+  --plate-2:        #b4b3b0;
+  --plate-3:        #c2c1be;
+  --brush-line:     rgba(0,0,0,0.025);
 
   /* Step cells */
-  --cell-well:      #191b1f;
-  --cell-beat:      #20242b;
-  --cell-border:    #2a2e35;
+  --cell-well:      #acabA8;
+  --cell-beat:      #b8b7b4;
+  --cell-border:    #a2a19e;
 
-  /* Accents */
-  --led-cyan:       #38bdf8;
-  --led-cyan-soft:  #7dd3fc;
-  --accent-amber:   #ff7a18;
-  --accent-amber-d: #c95a0a;
+  /* Accents (coral/salmon — Model:Samples active colour) */
+  --led-cyan:       #c86050;
+  --led-cyan-soft:  #b85848;
+  --accent-amber:   #b07840;
+  --accent-amber-d: #8a5c28;
 
   /* OLED display */
-  --oled-bg:        #06131c;
-  --oled-text:      #5fd0ff;
-  --oled-border:    #12303f;
+  --oled-bg:        #0c0c0c;
+  --oled-text:      #e8e6e4;
+  --oled-border:    #2a2826;
 
   /* Typography */
   --font-display:   'Oswald', 'Lato', system-ui, sans-serif;

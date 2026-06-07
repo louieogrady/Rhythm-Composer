@@ -3,16 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 
 import '../App.scss';
 
-import kickImg   from '../images/kick.png';
-import clapImg   from '../images/clap.png';
-import snareImg  from '../images/snare.png';
-import congaImg  from '../images/conga.png';
-import cymbalImg from '../images/cymbal.png';
-import hihatImg  from '../images/hihat.png';
-
 // Order: kick(0) cymbal(1) clap(2) snare(3) hihat(4) conga(5)
-const INST_IMAGES = [kickImg, cymbalImg, clapImg, snareImg, hihatImg, congaImg];
-const INST_ALT    = ['kick', 'cymbal', 'clap', 'snare', 'hihat', 'conga'];
+const INST_LABELS = ['BD', 'CY', 'CP', 'SD', 'HH', 'CO'];
 
 import Cell from './Cell';
 import PlayPause from './PlayPause';
@@ -291,7 +283,7 @@ const App = () => {
               <div id="musicGrid">
                 {steps.map((row, x) => (
                   <div className="row" key={x}>
-                    <img className="inst-img" src={INST_IMAGES[x]} alt={INST_ALT[x]} />
+                    <span className="inst-label">{INST_LABELS[x]}</span>
                     {row.map((_, y) => (
                       <Cell
                         key={y}

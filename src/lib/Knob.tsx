@@ -130,7 +130,7 @@ export const Knob = ({
         <path
           d={arc(cx, cy, trackR, START_DEG, endAngle)}
           fill="none"
-          stroke="#444"
+          stroke="#9a9896"
           strokeWidth="5"
           strokeLinecap="round"
         />
@@ -138,28 +138,28 @@ export const Knob = ({
           <path
             d={arc(cx, cy, trackR, START_DEG, angle)}
             fill="none"
-            stroke="#4fc3f7"
+            stroke="#c86050"
             strokeWidth="5"
             strokeLinecap="round"
           />
         )}
-        <circle cx={cx} cy={cy} r={bodyR} fill="#2e2e2e" stroke="#555" strokeWidth="1.5" />
+        <circle cx={cx} cy={cy} r={bodyR} fill="#706e6b" stroke="#888684" strokeWidth="1.5" />
         <line
           x1={cx}
           y1={cy}
           x2={(cx + indicatorR * Math.cos(indRad)).toFixed(3)}
           y2={(cy + indicatorR * Math.sin(indRad)).toFixed(3)}
-          stroke="#4fc3f7"
+          stroke="#c86050"
           strokeWidth="3.5"
           strokeLinecap="round"
         />
-        <circle cx={cx} cy={cy} r={3.5} fill="#4fc3f7" />
+        <circle cx={cx} cy={cy} r={3.5} fill="#c86050" />
         <text
           x={cx}
           y={cy + 15}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="#4fc3f7"
+          fill="#1a1816"
           fontSize={valFontSize}
           fontFamily="monospace"
           pointerEvents="none"
