@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@csound/browser": "^7.0.0-beta31",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.16.0",
-    "tone": "^15.1.22"
+    "react-router-dom": "^7.16.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.16",
