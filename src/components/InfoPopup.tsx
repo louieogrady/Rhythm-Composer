@@ -18,7 +18,7 @@ const InfoPopUp = ({ showInfoPopup }: InfoPopUpProps) => {
         <p>
           Rhythm Composer is a browser-based drum machine / 16 step sequencer. Users can play,
           create, edit and add effects to drum patterns in real-time. Created with React, each drum
-          sound is synthesised with the Tone.js framework.
+          sound is synthesised with Csound WASM running in an AudioWorklet.
           <br /><br />
           The grid represents a traditional 4/4 measure with each step representing 1/16 of that
           measure. Downbeats are represented by the orange boxes. Each row of the grid has been
