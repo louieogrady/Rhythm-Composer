@@ -7,6 +7,7 @@ import '../App.scss';
 const INST_LABELS = ['BD', 'CY', 'CP', 'SD', 'HH', 'CO'];
 
 import Cell from './Cell';
+import CellEditPopup, { type CellEditTarget } from './CellEditPopup';
 import PlayPause from './PlayPause';
 import ClearPattern from './ClearPattern';
 import RandomPattern from './RandomPattern';
@@ -26,30 +27,53 @@ interface KnobConfig {
   onCommit: (v: number) => void;
 }
 
-const EMPTY_STEPS = (): number[][] =>
-  Array.from({ length: 6 }, () => Array<number>(16).fill(0));
+const VEL_DEFAULT  = 1.0;
+const PROB_DEFAULT = 1.0;
 
-const stepsToParam = (steps: number[][]): string => {
-  const flat = steps.flat();
-  const bytes = new Uint8Array(12);
-  for (let i = 0; i < 96; i++) {
-    if (flat[i]) bytes[i >> 3] |= 1 << (7 - (i & 7));
+export interface Cell {
+  on: 0 | 1;
+  vel: number;
+  prob: number;
+}
+
+const makeCell = (on: 0 | 1 = 0): Cell => ({ on, vel: VEL_DEFAULT, prob: PROB_DEFAULT });
+
+const EMPTY_STEPS = (): Cell[][] =>
+  Array.from({ length: 6 }, () => Array.from({ length: 16 }, () => makeCell()));
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+const patternToParam = (steps: Cell[][]): string => {
+  const bytes = new Uint8Array(96);
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 16; c++) {
+      const cell = steps[r][c];
+      const encVel  = Math.round(clamp01(cell.vel)  * 15);
+      const encProb = Math.round(clamp01(cell.prob) * 7);
+      bytes[r * 16 + c] = (cell.on << 7) | (encVel << 3) | encProb;
+    }
   }
-  return btoa(String.fromCharCode(...Array.from(bytes)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-const paramToSteps = (str: string): number[][] | null => {
-  if (str.length !== 16) return null;
+const paramToPattern = (str: string): Cell[][] | null => {
+  if (str.length !== 128) return null;
   try {
     const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
-    if (bin.length !== 12) return null;
-    const flat = Array.from({ length: 96 }, (_, i) =>
-      (bin.charCodeAt(i >> 3) >> (7 - (i & 7))) & 1
+    if (bin.length !== 96) return null;
+    return Array.from({ length: 6 }, (_, r) =>
+      Array.from({ length: 16 }, (_, c) => {
+        const byte = bin.charCodeAt(r * 16 + c);
+        const on = ((byte >> 7) & 1) as 0 | 1;
+        return {
+          on,
+          vel:  ((byte >> 3) & 0x0F) / 15,
+          prob: (byte & 0x07) / 7,
+        } satisfies Cell;
+      })
     );
-    return Array.from({ length: 6 }, (_, i) => flat.slice(i * 16, i * 16 + 16));
   } catch {
     return null;
   }
@@ -60,7 +84,7 @@ const DB_DEFAULT = -3;
 const App = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [steps, setSteps]                         = useState<number[][]>(EMPTY_STEPS);
+  const [steps, setSteps]                         = useState<Cell[][]>(EMPTY_STEPS);
   const [bpm, setBpmState]                        = useState(120);
   const [masterVolume, setMasterVolumeState]      = useState(DB_DEFAULT);
   const [kickDrumTuning, setKickDrumTuning]       = useState(43.65);
@@ -72,6 +96,7 @@ const App = () => {
   const [activeColumn, setActiveColumn]           = useState(0);
   const [showInfo, setShowInfo]                   = useState(false);
   const [showFreq, setShowFreq]                   = useState(false);
+  const [editTarget, setEditTarget]               = useState<CellEditTarget | null>(null);
 
   // Refs for stale-closure prevention in scheduler callback
   const stepsRef          = useRef(steps);
@@ -102,8 +127,10 @@ const App = () => {
   useEffect(() => {
     csoundEngine.setOnSchedule((col, delay) => {
       stepsRef.current.forEach((row, noteIndex) => {
-        if (!row[col]) return;
-        const vel = Math.random() * 0.5 + 0.5;
+        const cell = row[col];
+        if (!cell.on) return;
+        if (Math.random() > cell.prob) return;
+        const vel = cell.vel;
         switch (noteIndex) {
           case 0: // Kick
             csoundEngine.trigger(1, delay, 0.5, vel, kickTuningRef.current);
@@ -150,9 +177,9 @@ const App = () => {
       case 'cym':  setCymbalLevel(num); break;
       case 'con':  setCongaTuning(num); csoundEngine.setControlChannel('congaTuning', num); break;
       case 'bpm':  csoundEngine.setBpm(num); setBpmState(num); break;
-      case 'steps': {
-        const parsed = paramToSteps(rawVal);
-        if (parsed) setSteps(parsed);
+      case 'p': {
+        const grid = paramToPattern(rawVal);
+        if (grid) setSteps(grid);
         break;
       }
       default: break;
@@ -172,24 +199,57 @@ const App = () => {
   const stepToggle = useCallback((x: number, y: number) => {
     setSteps(prev => {
       const next = prev.map((row, i) =>
-        i === x ? row.map((v, j) => (j === y ? (v === 0 ? 1 : 0) : v)) : row
+        i === x ? row.map((c, j) => (j === y ? { ...c, on: (c.on === 0 ? 1 : 0) as 0 | 1 } : c)) : row
       );
       setSearchParams(sp => {
         const nsp = new URLSearchParams(sp);
-        nsp.set('steps', stepsToParam(next));
+        nsp.set('p', patternToParam(next));
         return nsp;
       }, { replace: true });
       return next;
     });
   }, [setSearchParams]);
 
+  const setCellField = useCallback((x: number, y: number, field: 'vel' | 'prob', v: number) => {
+    setSteps(prev =>
+      prev.map((row, i) =>
+        i === x ? row.map((c, j) => (j === y ? { ...c, [field]: v } : c)) : row
+      )
+    );
+  }, []);
+
+  const openEditor = useCallback((x: number, y: number, rect: DOMRect) => {
+    setSteps(prev => {
+      if (prev[x][y].on === 1) return prev;
+      const next = prev.map((row, i) =>
+        i === x ? row.map((c, j) => (j === y ? { ...c, on: 1 as const } : c)) : row
+      );
+      setSearchParams(sp => {
+        const nsp = new URLSearchParams(sp);
+        nsp.set('p', patternToParam(next));
+        return nsp;
+      }, { replace: true });
+      return next;
+    });
+    setEditTarget({ x, y, rect });
+  }, [setSearchParams]);
+
+  const commitEdit = useCallback(() => {
+    setSearchParams(sp => {
+      const nsp = new URLSearchParams(sp);
+      nsp.set('p', patternToParam(stepsRef.current));
+      return nsp;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const randomPattern = useCallback(() => {
-    const rand = (): number[] => Array(16).fill(0).map(() => Math.random() > 0.8 ? 1 : 0);
-    const newSteps = Array.from({ length: 6 }, rand);
+    const newSteps = Array.from({ length: 6 }, () =>
+      Array.from({ length: 16 }, () => makeCell(Math.random() > 0.8 ? 1 : 0))
+    );
     setSteps(newSteps);
     setSearchParams(sp => {
       const nsp = new URLSearchParams(sp);
-      nsp.set('steps', stepsToParam(newSteps));
+      nsp.set('p', patternToParam(newSteps));
       return nsp;
     }, { replace: true });
   }, [setSearchParams]);
@@ -199,7 +259,7 @@ const App = () => {
     setSteps(cleared);
     setSearchParams(sp => {
       const nsp = new URLSearchParams(sp);
-      nsp.set('steps', stepsToParam(cleared));
+      nsp.set('p', patternToParam(cleared));
       return nsp;
     }, { replace: true });
   }, [setSearchParams]);
@@ -253,12 +313,15 @@ const App = () => {
 
   const stageRef = useRef<HTMLDivElement>(null);
   const bgRef    = useRef<HTMLDivElement>(null);
+  const fitScale = Math.min(0.8, window.innerWidth / 1080);
   useZoom(stageRef, {
+    initial: fitScale,
+    min: Math.max(0.25, fitScale * 0.85),
     onTransform: (s, tx, ty) => {
+      setEditTarget(null);
       const el = bgRef.current;
       if (!el) return;
-      // 0.9 keeps background nearly in sync with the unit — same-plane "moving closer" feel
-      el.style.transform = `translate(${tx * 0.9}px, ${ty * 0.9}px) scale(${1 + (s - 1) * 0.9})`;
+      el.style.transform = `translate(${tx * 0.05}px, ${ty * 0.05}px)`;
     },
   });
 
@@ -288,6 +351,9 @@ const App = () => {
                       <Cell
                         key={y}
                         stepToggle={stepToggle}
+                        openEditor={openEditor}
+                        onCloseEditor={() => setEditTarget(null)}
+                        isEditing={editTarget?.x === x && editTarget?.y === y}
                         x={x}
                         y={y}
                         activeColumn={activeColumn}
@@ -321,6 +387,17 @@ const App = () => {
 
       {showInfo && <InfoPopUp showInfoPopup={() => setShowInfo(false)} />}
       {showFreq && <FreqPopUp showFreqPopup={() => setShowFreq(false)} />}
+      {editTarget && (
+        <CellEditPopup
+          target={editTarget}
+          velocity={steps[editTarget.x][editTarget.y].vel}
+          probability={steps[editTarget.x][editTarget.y].prob}
+          onVelocity={v => setCellField(editTarget.x, editTarget.y, 'vel', v)}
+          onProbability={v => setCellField(editTarget.x, editTarget.y, 'prob', v)}
+          onCommit={commitEdit}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
     </>
   );
 };

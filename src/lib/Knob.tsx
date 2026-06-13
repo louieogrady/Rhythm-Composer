@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 
 interface KnobProps {
   min?: number;
@@ -6,6 +6,7 @@ interface KnobProps {
   value?: number;
   defaultValue?: number;
   label?: string;
+  unit?: string;
   onChange?: (v: number) => void;
   onCommit?: (v: number) => void;
   sensitivity?: number;
@@ -46,6 +47,7 @@ export const Knob = ({
   value,
   defaultValue,
   label,
+  unit = '',
   onChange,
   onCommit,
   sensitivity,
@@ -53,6 +55,8 @@ export const Knob = ({
   const init = value ?? defaultValue ?? min;
   const [internal, setInternal] = useState(init);
   const drag = useRef<DragState | null>(null);
+  const uid = useId();
+  const bodyGradId = `knobBody${uid}`;
 
   useEffect(() => {
     if (value !== undefined) setInternal(value);
@@ -107,7 +111,7 @@ export const Knob = ({
   };
 
   const hasActiveArc = angle > START_DEG;
-  const displayVal = fmtVal(internal, min, max);
+  const displayVal = fmtVal(internal, min, max) + unit;
   const valFontSize = displayVal.length <= 3 ? 15 : 12;
 
   return (
@@ -127,10 +131,17 @@ export const Knob = ({
         aria-valuenow={Math.round(internal * 100) / 100}
         aria-label={label}
       >
+        <defs>
+          <radialGradient id={bodyGradId} cx="35%" cy="28%" r="78%">
+            <stop offset="0%" stopColor="#b4b2af" />
+            <stop offset="45%" stopColor="#7e7c79" />
+            <stop offset="100%" stopColor="#4a4844" />
+          </radialGradient>
+        </defs>
         <path
           d={arc(cx, cy, trackR, START_DEG, endAngle)}
           fill="none"
-          stroke="#9a9896"
+          stroke="#85837f"
           strokeWidth="5"
           strokeLinecap="round"
         />
@@ -143,7 +154,9 @@ export const Knob = ({
             strokeLinecap="round"
           />
         )}
-        <circle cx={cx} cy={cy} r={bodyR} fill="#706e6b" stroke="#888684" strokeWidth="1.5" />
+        <circle cx={cx} cy={cy + 1.5} r={bodyR} fill="rgba(0,0,0,0.35)" />
+        <circle cx={cx} cy={cy} r={bodyR} fill={`url(#${bodyGradId})`} />
+        <circle cx={cx} cy={cy} r={bodyR} fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
         <line
           x1={cx}
           y1={cy}
