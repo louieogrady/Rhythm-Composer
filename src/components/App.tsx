@@ -8,6 +8,8 @@ const INST_LABELS = ['BD', 'CY', 'CP', 'SD', 'HH', 'CO'];
 
 import Cell from './Cell';
 import CellEditPopup, { type CellEditTarget } from './CellEditPopup';
+import SlotButton from './SlotButton';
+import SlotMenu, { type SlotMenuTarget } from './SlotMenu';
 import PlayPause from './PlayPause';
 import ClearPattern from './ClearPattern';
 import RandomPattern from './RandomPattern';
@@ -17,6 +19,21 @@ import FreqPopUp from './FreqPopup';
 import { Knob, useZoom } from '../lib';
 
 import * as csoundEngine from '../audio/csound-engine';
+
+export interface Snapshot {
+  p: string;
+  bpm: number;
+  k: number;
+  con: number;
+  rev: number;
+  ping: number;
+  hh: number;
+  cym: number;
+}
+
+export { type SlotMenuTarget };
+
+const BANK_SIZE = 5;
 
 interface KnobConfig {
   label: string;
@@ -97,6 +114,9 @@ const App = () => {
   const [showInfo, setShowInfo]                   = useState(false);
   const [showFreq, setShowFreq]                   = useState(false);
   const [editTarget, setEditTarget]               = useState<CellEditTarget | null>(null);
+  const [bank, setBank]       = useState<(Snapshot | null)[]>(() => Array<Snapshot | null>(BANK_SIZE).fill(null));
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [slotMenu, setSlotMenu]     = useState<SlotMenuTarget | null>(null);
 
   // Refs for stale-closure prevention in scheduler callback
   const stepsRef          = useRef(steps);
@@ -122,6 +142,8 @@ const App = () => {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
+
+  const invalidateSlot = useCallback(() => setActiveSlot(null), []);
 
   // Register sequencer callbacks once on mount
   useEffect(() => {
@@ -186,6 +208,71 @@ const App = () => {
     }
   };
 
+  const captureSnapshot = (): Snapshot => ({
+    p:    patternToParam(steps),
+    bpm,
+    k:    kickDrumTuning,
+    con:  congaTuning,
+    rev:  clapReverbWetLevel,
+    ping: pingPongLevel,
+    hh:   closedHihatDecayLevel,
+    cym:  cymbalLevel,
+  });
+
+  const applySnapshot = (snap: Snapshot): void => {
+    applyParam('p',    snap.p);
+    applyParam('bpm',  String(snap.bpm));
+    applyParam('k',    String(snap.k));
+    applyParam('con',  String(snap.con));
+    applyParam('rev',  String(snap.rev));
+    applyParam('ping', String(snap.ping));
+    applyParam('hh',   String(snap.hh));
+    applyParam('cym',  String(snap.cym));
+
+    updateParam('bpm', snap.bpm);
+    updateParam('k',   snap.k);
+    updateParam('con', snap.con);
+    updateParam('rev', snap.rev);
+    updateParam('ping', snap.ping);
+    updateParam('hh',  snap.hh);
+    updateParam('cym', snap.cym);
+    setSearchParams(sp => {
+      const nsp = new URLSearchParams(sp);
+      nsp.set('p', snap.p);
+      return nsp;
+    }, { replace: true });
+  };
+
+  const saveToSlot = (i: number): void => {
+    const snap = captureSnapshot();
+    setBank(prev => prev.map((s, j) => (j === i ? snap : s)));
+    setActiveSlot(i);
+  };
+
+  const clearSlot = (i: number): void => {
+    setBank(prev => prev.map((s, j) => (j === i ? null : s)));
+    setActiveSlot(cur => (cur === i ? null : cur));
+    setSlotMenu(null);
+  };
+
+  const onSlotClick = (i: number): void => {
+    if (activeSlot === i) {
+      setActiveSlot(null);
+      return;
+    }
+    if (bank[i] === null) {
+      saveToSlot(i);
+    } else {
+      applySnapshot(bank[i]!);
+      setActiveSlot(i);
+    }
+  };
+
+  const onSlotMenu = (i: number, rect: DOMRect): void => {
+    if (bank[i] === null) return;
+    setSlotMenu({ index: i, rect });
+  };
+
   // Transport
   const play = async (): Promise<void> => {
     await csoundEngine.init();
@@ -197,6 +284,7 @@ const App = () => {
 
   // Step grid
   const stepToggle = useCallback((x: number, y: number) => {
+    invalidateSlot();
     setSteps(prev => {
       const next = prev.map((row, i) =>
         i === x ? row.map((c, j) => (j === y ? { ...c, on: (c.on === 0 ? 1 : 0) as 0 | 1 } : c)) : row
@@ -211,6 +299,7 @@ const App = () => {
   }, [setSearchParams]);
 
   const setCellField = useCallback((x: number, y: number, field: 'vel' | 'prob', v: number) => {
+    invalidateSlot();
     setSteps(prev =>
       prev.map((row, i) =>
         i === x ? row.map((c, j) => (j === y ? { ...c, [field]: v } : c)) : row
@@ -219,6 +308,7 @@ const App = () => {
   }, []);
 
   const openEditor = useCallback((x: number, y: number, rect: DOMRect) => {
+    invalidateSlot();
     setSteps(prev => {
       if (prev[x][y].on === 1) return prev;
       const next = prev.map((row, i) =>
@@ -243,6 +333,7 @@ const App = () => {
   }, [setSearchParams]);
 
   const randomPattern = useCallback(() => {
+    invalidateSlot();
     const newSteps = Array.from({ length: 6 }, () =>
       Array.from({ length: 16 }, () => makeCell(Math.random() > 0.8 ? 1 : 0))
     );
@@ -255,6 +346,7 @@ const App = () => {
   }, [setSearchParams]);
 
   const clearPattern = useCallback(() => {
+    invalidateSlot();
     const cleared = EMPTY_STEPS();
     setSteps(cleared);
     setSearchParams(sp => {
@@ -268,7 +360,7 @@ const App = () => {
   const changeBpm = (v: number, commit: boolean): void => {
     csoundEngine.setBpm(v);
     setBpmState(v);
-    if (commit) updateParam('bpm', v);
+    if (commit) { invalidateSlot(); updateParam('bpm', v); }
   };
   const changeVolume = (v: number): void => {
     csoundEngine.setControlChannel('masterGain', Math.pow(10, v / 20));
@@ -278,27 +370,27 @@ const App = () => {
 
   const changeKickTuning = (v: number, commit: boolean): void => {
     setKickDrumTuning(v);
-    if (commit) updateParam('k', v);
+    if (commit) { invalidateSlot(); updateParam('k', v); }
   };
   const changeCymbalRelease = (v: number, commit: boolean): void => {
     setCymbalLevel(v);
-    if (commit) updateParam('cym', v);
+    if (commit) { invalidateSlot(); updateParam('cym', v); }
   };
   const changeClapReverb = (v: number, commit: boolean): void => {
     setClapReverbWetLevel(v);
-    if (commit) updateParam('rev', v);
+    if (commit) { invalidateSlot(); updateParam('rev', v); }
   };
   const changePingPong = (v: number, commit: boolean): void => {
     setPingPongLevel(v);
-    if (commit) updateParam('ping', v);
+    if (commit) { invalidateSlot(); updateParam('ping', v); }
   };
   const changeHihatDecay = (v: number, commit: boolean): void => {
     setClosedHihatDecayLevel(v);
-    if (commit) updateParam('hh', v);
+    if (commit) { invalidateSlot(); updateParam('hh', v); }
   };
   const changeCongaTuning = (v: number, commit: boolean): void => {
     setCongaTuning(v);
-    if (commit) updateParam('con', v);
+    if (commit) { invalidateSlot(); updateParam('con', v); }
   };
 
   // Per-row knob props
@@ -319,6 +411,7 @@ const App = () => {
     min: Math.max(0.25, fitScale * 0.85),
     onTransform: (s, tx, ty) => {
       setEditTarget(null);
+      setSlotMenu(null);
       const el = bgRef.current;
       if (!el) return;
       el.style.transform = `translate(${tx * 0.05}px, ${ty * 0.05}px)`;
@@ -368,6 +461,22 @@ const App = () => {
               </div>
             </div>
 
+            <div className="bank-section">
+              <span className="bank-label">Pattern Bank</span>
+              <div className="bank-row">
+                {bank.map((snap, i) => (
+                  <SlotButton
+                    key={i}
+                    index={i}
+                    filled={snap !== null}
+                    active={activeSlot === i}
+                    onClick={onSlotClick}
+                    onMenu={onSlotMenu}
+                  />
+                ))}
+              </div>
+            </div>
+
             <div className="bottom-row">
               <div className="buttons">
                 <PlayPause play={play} pause={pause} />
@@ -387,6 +496,14 @@ const App = () => {
 
       {showInfo && <InfoPopUp showInfoPopup={() => setShowInfo(false)} />}
       {showFreq && <FreqPopUp showFreqPopup={() => setShowFreq(false)} />}
+      {slotMenu && (
+        <SlotMenu
+          target={slotMenu}
+          onOverwrite={i => { saveToSlot(i); setSlotMenu(null); }}
+          onClear={clearSlot}
+          onClose={() => setSlotMenu(null)}
+        />
+      )}
       {editTarget && (
         <CellEditPopup
           target={editTarget}
