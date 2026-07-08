@@ -1,28 +1,53 @@
 # Rhythm Composer
 
-Rhythm Composer is a browser-based drum machine / 16 step sequencer. Users can play, create, edit and add effects to drum patterns in real-time. Created with React, each drum sound is synthesised with the Tone.js framework.
+A browser-based drum machine and 16-step sequencer. Play, create, and edit drum patterns in real-time. Built with React and TypeScript; all synthesis runs in-browser via [Csound](https://csound.com/) compiled to WebAssembly.
 
-The project is live at the following link: https://rhythm-composer.herokuapp.com/
+## Instruments
 
-## Details
+The grid is a 6-row × 16-step sequencer representing one 4/4 measure (each step = 1/16th note). Each row is a synthesised drum sound, with a dedicated control knob on the right:
 
-The grid represents a traditional 4/4 measure with each step representing 1/16 of that measure. Downbeats are represented by the red boxes. Each row of the grid has been assigned a drum sound which is shown by the icons on the left-hand side of the grid. Each of these drum sounds have an exclusive effect, pitch or envelope control, the parameters of which can the knobs on the right-hand side. From top to bottom, the drum sounds and effects (in parentheses) are:
+| Row | Sound  | Knob        |
+|-----|--------|-------------|
+| BD  | Kick   | Tuning (Hz) |
+| CY  | Cymbal | Release     |
+| CP  | Clap   | Reverb      |
+| SD  | Snare  | Delay       |
+| HH  | Hi-hat | Decay       |
+| CO  | Conga  | Tuning (Hz) |
 
-- Kickdrum (Tuning [Hz])
-- Hihat (Release)
-- Clap (Reverb)
-- Snare (Ping-pong Delay)
-- Cymbal (Attack)
-- Conga (Tuning [Hz])
+All synthesis uses physically-informed Csound opcodes (membrane models, FM metallic noise, filtered burst noise) running in an AudioWorklet off the main thread.
 
-Drum patterns can be entered by the user by clicking on the boxes in the grid. Once clicked, the box will turn blue which shows it is activated and will be triggered at that given time in the 4/4 measure. 
+## Controls
 
-When the user presses play, the loop starts and the current position will be shown by the yellow outline which will be moving across the grid. Users can edit their drum pattern in real-time.
+- **Play / Pause** — starts or stops the sequencer; Csound initialises on first play
+- **Tempo (BPM)** — 10–200 BPM, takes effect on the next scheduled step
+- **Swing** — adds a time offset to odd steps for a shuffled feel
+- **Volume (dB)** — master output level
 
-The randomise button will create a random pattern. 
+## Entering Patterns
 
-## Sharing Drum Patterns
+Click any cell to toggle it on or off. Active cells light up and trigger their instrument at the corresponding step.
 
-When using rhythm composer, changes are added to the url parameters which means that users can share their exact drum pattern with others by copying the url and sending it to the recipient.
+**Long-press** (or right-click) an active cell to open the per-cell editor, where you can set:
+- **Velocity** — how hard the hit plays (0–100%)
+- **Probability** — chance the step fires on any given pass (0–100%)
 
-![](ezgif-7-9c541481d44c.gif)
+The playhead (yellow outline) moves across the grid in real-time. Patterns can be edited while playing.
+
+## Pattern Bank
+
+Five save slots sit below the grid. Click an empty slot to save the current pattern (including all knob values and BPM). Click a filled slot to recall it. Long-press a filled slot to overwrite or clear it.
+
+## Sharing Patterns
+
+The URL updates automatically as you edit — every step, knob value, and BPM is encoded in the query string. Copy and share the URL to send your exact pattern to someone else.
+
+![Rhythm Composer](screenshot.png)
+
+## Tech Stack
+
+- **React 19** + **TypeScript**
+- **Csound WASM** (`@csound/browser`) — synthesis and effects in an AudioWorklet
+- **Web Audio API** lookahead scheduler — hardware-clock timing with swing support
+- **Vite** — build tooling
+- **SCSS** — styling
