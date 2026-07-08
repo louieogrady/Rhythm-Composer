@@ -10,6 +10,7 @@ const ClickOutside = ({ children, onClick }: ClickOutsideProps) => {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (e.button === 2) return; // let onContextMenu's own toggle logic handle right-clicks
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClick(e);
       }

@@ -1,2 +1,2 @@
 export { Knob } from './Knob';
-export { TransportButton } from './TransportButton';
+export { useZoom } from './useZoom';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 
 interface KnobProps {
   min?: number;
@@ -6,6 +6,7 @@ interface KnobProps {
   value?: number;
   defaultValue?: number;
   label?: string;
+  unit?: string;
   onChange?: (v: number) => void;
   onCommit?: (v: number) => void;
   sensitivity?: number;
@@ -46,6 +47,7 @@ export const Knob = ({
   value,
   defaultValue,
   label,
+  unit = '',
   onChange,
   onCommit,
   sensitivity,
@@ -53,6 +55,8 @@ export const Knob = ({
   const init = value ?? defaultValue ?? min;
   const [internal, setInternal] = useState(init);
   const drag = useRef<DragState | null>(null);
+  const uid = useId();
+  const bodyGradId = `knobBody${uid}`;
 
   useEffect(() => {
     if (value !== undefined) setInternal(value);
@@ -107,7 +111,7 @@ export const Knob = ({
   };
 
   const hasActiveArc = angle > START_DEG;
-  const displayVal = fmtVal(internal, min, max);
+  const displayVal = fmtVal(internal, min, max) + unit;
   const valFontSize = displayVal.length <= 3 ? 15 : 12;
 
   return (
@@ -127,10 +131,17 @@ export const Knob = ({
         aria-valuenow={Math.round(internal * 100) / 100}
         aria-label={label}
       >
+        <defs>
+          <radialGradient id={bodyGradId} cx="35%" cy="28%" r="78%">
+            <stop offset="0%" stopColor="#b4b2af" />
+            <stop offset="45%" stopColor="#7e7c79" />
+            <stop offset="100%" stopColor="#4a4844" />
+          </radialGradient>
+        </defs>
         <path
           d={arc(cx, cy, trackR, START_DEG, endAngle)}
           fill="none"
-          stroke="#444"
+          stroke="#85837f"
           strokeWidth="5"
           strokeLinecap="round"
         />
@@ -138,28 +149,30 @@ export const Knob = ({
           <path
             d={arc(cx, cy, trackR, START_DEG, angle)}
             fill="none"
-            stroke="#4fc3f7"
+            stroke="#c86050"
             strokeWidth="5"
             strokeLinecap="round"
           />
         )}
-        <circle cx={cx} cy={cy} r={bodyR} fill="#2e2e2e" stroke="#555" strokeWidth="1.5" />
+        <circle cx={cx} cy={cy + 1.5} r={bodyR} fill="rgba(0,0,0,0.35)" />
+        <circle cx={cx} cy={cy} r={bodyR} fill={`url(#${bodyGradId})`} />
+        <circle cx={cx} cy={cy} r={bodyR} fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
         <line
           x1={cx}
           y1={cy}
           x2={(cx + indicatorR * Math.cos(indRad)).toFixed(3)}
           y2={(cy + indicatorR * Math.sin(indRad)).toFixed(3)}
-          stroke="#4fc3f7"
+          stroke="#c86050"
           strokeWidth="3.5"
           strokeLinecap="round"
         />
-        <circle cx={cx} cy={cy} r={3.5} fill="#4fc3f7" />
+        <circle cx={cx} cy={cy} r={3.5} fill="#c86050" />
         <text
           x={cx}
           y={cy + 15}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="#4fc3f7"
+          fill="#1a1816"
           fontSize={valFontSize}
           fontFamily="monospace"
           pointerEvents="none"

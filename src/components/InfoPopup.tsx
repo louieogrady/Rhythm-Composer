@@ -29,6 +29,12 @@ const InfoPopUp = ({ showInfoPopup }: InfoPopUpProps) => {
           will be triggered at that step. When playing, the orange outline shows the current
           position. The randomize button creates a random pattern.
           <br /><br />
+          Right-click (or long-press on touch devices) a step to open its velocity and probability
+          controls. Velocity sets how loud that step hits, shown by the brightness of the box.
+          Probability sets the chance the step fires on any given pass — shown by a dashed
+          border when below 100% — and is re-rolled independently every time the sequencer
+          loops round, so it never repeats in a fixed pattern.
+          <br /><br />
           Best experienced on a desktop computer.
           <br /><br />
           By <a href="https://github.com/louieogrady">Louie O&apos;Grady.</a>
