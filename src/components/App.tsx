@@ -20,20 +20,31 @@ import { Knob, useZoom } from '../lib';
 
 import * as csoundEngine from '../audio/csound-engine';
 
-export interface Snapshot {
-  p: string;
-  bpm: number;
-  k: number;
-  con: number;
-  rev: number;
-  ping: number;
-  hh: number;
-  cym: number;
-}
+import {
+  type Cell as CellType,
+  type Snapshot,
+  makeCell,
+  EMPTY_STEPS,
+  patternToParam,
+  paramToPattern,
+} from '../lib/pattern';
 
+import {
+  emptyBank,
+  writeSlot,
+  clearSlotAt,
+  resolveSlotClick,
+  type SlotAction,
+} from '../lib/bank';
+
+import {
+  resolveStepTriggers,
+  type InstrumentParams,
+} from '../lib/scheduler';
+
+export type { CellType as Cell };
+export type { Snapshot };
 export { type SlotMenuTarget };
-
-const BANK_SIZE = 5;
 
 interface KnobConfig {
   label: string;
@@ -44,64 +55,12 @@ interface KnobConfig {
   onCommit: (v: number) => void;
 }
 
-const VEL_DEFAULT  = 1.0;
-const PROB_DEFAULT = 1.0;
-
-export interface Cell {
-  on: 0 | 1;
-  vel: number;
-  prob: number;
-}
-
-const makeCell = (on: 0 | 1 = 0): Cell => ({ on, vel: VEL_DEFAULT, prob: PROB_DEFAULT });
-
-const EMPTY_STEPS = (): Cell[][] =>
-  Array.from({ length: 6 }, () => Array.from({ length: 16 }, () => makeCell()));
-
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-
-const patternToParam = (steps: Cell[][]): string => {
-  const bytes = new Uint8Array(96);
-  for (let r = 0; r < 6; r++) {
-    for (let c = 0; c < 16; c++) {
-      const cell = steps[r][c];
-      const encVel  = Math.round(clamp01(cell.vel)  * 15);
-      const encProb = Math.round(clamp01(cell.prob) * 7);
-      bytes[r * 16 + c] = (cell.on << 7) | (encVel << 3) | encProb;
-    }
-  }
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
-
-const paramToPattern = (str: string): Cell[][] | null => {
-  if (str.length !== 128) return null;
-  try {
-    const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
-    if (bin.length !== 96) return null;
-    return Array.from({ length: 6 }, (_, r) =>
-      Array.from({ length: 16 }, (_, c) => {
-        const byte = bin.charCodeAt(r * 16 + c);
-        const on = ((byte >> 7) & 1) as 0 | 1;
-        return {
-          on,
-          vel:  ((byte >> 3) & 0x0F) / 15,
-          prob: (byte & 0x07) / 7,
-        } satisfies Cell;
-      })
-    );
-  } catch {
-    return null;
-  }
-};
-
 const DB_DEFAULT = -3;
 
 const App = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [steps, setSteps]                         = useState<Cell[][]>(EMPTY_STEPS);
+  const [steps, setSteps]                         = useState<CellType[][]>(EMPTY_STEPS);
   const [bpm, setBpmState]                        = useState(120);
   const [masterVolume, setMasterVolumeState]      = useState(DB_DEFAULT);
   const [kickDrumTuning, setKickDrumTuning]       = useState(43.65);
@@ -114,7 +73,7 @@ const App = () => {
   const [showInfo, setShowInfo]                   = useState(false);
   const [showFreq, setShowFreq]                   = useState(false);
   const [editTarget, setEditTarget]               = useState<CellEditTarget | null>(null);
-  const [bank, setBank]       = useState<(Snapshot | null)[]>(() => Array<Snapshot | null>(BANK_SIZE).fill(null));
+  const [bank, setBank]       = useState<(Snapshot | null)[]>(() => emptyBank());
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [slotMenu, setSlotMenu]     = useState<SlotMenuTarget | null>(null);
 
@@ -148,38 +107,16 @@ const App = () => {
   // Register sequencer callbacks once on mount
   useEffect(() => {
     csoundEngine.setOnSchedule((col, delay) => {
-      stepsRef.current.forEach((row, noteIndex) => {
-        const cell = row[col];
-        if (!cell.on) return;
-        if (Math.random() > cell.prob) return;
-        const vel = cell.vel;
-        switch (noteIndex) {
-          case 0: // Kick
-            csoundEngine.trigger(1, delay, 0.5, vel, kickTuningRef.current);
-            break;
-          case 1: { // Cymbal — duration tracks release knob
-            const rel = cymbalReleaseRef.current;
-            csoundEngine.trigger(2, delay, rel + 0.1, vel, rel);
-            break;
-          }
-          case 2: { // Clap — duration extends with reverb tail
-            const rev = clapReverbRef.current;
-            csoundEngine.trigger(3, delay, 0.25 + rev * 1.0, vel, rev);
-            break;
-          }
-          case 3: // Snare
-            csoundEngine.trigger(4, delay, 0.3, vel, pingPongRef.current);
-            break;
-          case 4: { // Hihat — duration tracks decay knob
-            const dec = hihatDecayRef.current;
-            csoundEngine.trigger(5, delay, dec + 0.05, vel, dec);
-            break;
-          }
-          case 5: // Conga
-            csoundEngine.trigger(6, delay, 0.7, vel, congaTuningRef.current);
-            break;
-        }
-      });
+      const params: InstrumentParams = {
+        kickTuning:    kickTuningRef.current,
+        cymbalRelease: cymbalReleaseRef.current,
+        clapReverb:    clapReverbRef.current,
+        pingPong:      pingPongRef.current,
+        hihatDecay:    hihatDecayRef.current,
+        congaTuning:   congaTuningRef.current,
+      };
+      const calls = resolveStepTriggers(stepsRef.current, col, delay, params);
+      for (const c of calls) csoundEngine.trigger(c.instr, c.delay, c.dur, c.vel, c.p5);
     });
     csoundEngine.setOnStep((col) => setActiveColumn(col));
 
@@ -245,26 +182,29 @@ const App = () => {
 
   const saveToSlot = (i: number): void => {
     const snap = captureSnapshot();
-    setBank(prev => prev.map((s, j) => (j === i ? snap : s)));
+    setBank(prev => writeSlot(prev, i, snap));
     setActiveSlot(i);
   };
 
   const clearSlot = (i: number): void => {
-    setBank(prev => prev.map((s, j) => (j === i ? null : s)));
+    setBank(prev => clearSlotAt(prev, i));
     setActiveSlot(cur => (cur === i ? null : cur));
     setSlotMenu(null);
   };
 
   const onSlotClick = (i: number): void => {
-    if (activeSlot === i) {
-      setActiveSlot(null);
-      return;
-    }
-    if (bank[i] === null) {
-      saveToSlot(i);
-    } else {
-      applySnapshot(bank[i]!);
-      setActiveSlot(i);
+    const action: SlotAction = resolveSlotClick(bank, activeSlot, i);
+    switch (action.kind) {
+      case 'deselect':
+        setActiveSlot(null);
+        break;
+      case 'save':
+        saveToSlot(action.index);
+        break;
+      case 'load':
+        applySnapshot(action.snapshot);
+        setActiveSlot(action.index);
+        break;
     }
   };
 
