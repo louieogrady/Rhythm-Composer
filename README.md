@@ -51,3 +51,7 @@ The URL updates automatically as you edit — every step, knob value, and BPM is
 - **Web Audio API** lookahead scheduler — hardware-clock timing with swing support
 - **Vite** — build tooling
 - **SCSS** — styling
+
+## Bundle Size
+
+The production build is ~2.9MB, the majority of which is the Csound WASM binary. This is an intentional trade-off: Csound provides physically-modelled drum synthesis (membrane models, FM metallic noise) that would be impractical to replicate with the Web Audio API's built-in oscillator primitives. The WASM module is loaded once and cached by the browser on repeat visits.
